@@ -316,7 +316,7 @@ class Registro(BaseWindow):
         query = 'select complete_name from miembros'
         miembros_com = conn.run_query(query)
         miembros_com = [m[0] for m in miembros_com]
-        self.combo_miembros['values']=miembros_com
+        self.combo_miembros['values']=miembros_com or 'Vacio'
         self.combo_miembros.current(0)
 
     def guardar_actividad_de_miembro(self):
