@@ -16,7 +16,7 @@ __all__ = ['BaseWindow', 'Registro', 'Config', 'ConfigType', 'SectionType']
 class SectionType(type):
     def __new__(cls, name, bases, cls_dict, section_name, items_dict):
         cls_dict['__doc__'] = f'Configs for {section_name} section'
-        cls_dict['section_name']=section_name
+        cls_dict['section_name']= section_name
         for key,value in items_dict.items():
             #print(f'key: {key}\nvalue: {value}\n')
             cls_dict[key] = value
@@ -26,7 +26,7 @@ class SectionType(type):
         yield from vars(self).items()
 
 class ConfigType(type):
-    def __new__(cls,name,bases,cls_dict,env):
+    def __new__(cls, name, bases, cls_dict, env):
         """
         env: str
             The enviorement we are loading config
@@ -44,12 +44,12 @@ class ConfigType(type):
             bases = (object,)
             section_cls_dict = {}
             section = SectionType(
-                class_name,bases,section_cls_dict,section_name=section_name,items_dict=section_items
+                class_name, bases, section_cls_dict, section_name=section_name, items_dict=section_items
             )
             cls_dict[class_attr_name] = section
         return super().__new__(cls,name,bases,cls_dict)
 
-class Config(metaclass=ConfigType,env='config'):
+class Config(metaclass= ConfigType, env='config'):
     pass
 
 class BaseWindow():
@@ -60,20 +60,23 @@ class BaseWindow():
     list_grados = [grado[1] for grado in Config.grados if grado[0].startswith('g')]
     lista_casa_estudios = [uni[1] for uni in Config.estudios if uni[0].startswith('c')]
 
-    def __init__(self,titulo='Titulo Genérico'):
+    def __init__(self, titulo='Titulo Genérico'):
         self.window = Tk()
         self.window.title(titulo)
         self.window.configure(background=BaseWindow.color_fondo)
 
 
 class Registro(BaseWindow):
-    def __init__(self):
+    def __init__(self, database_proyec = 'proyecto_1.db'):
         super().__init__(titulo=f'{self.nombre_del_grupo}')
         self.notebook = ttk.Notebook(self.window)
-        self.notebook.pack(fill='both',expand='yes')
+        self.notebook.pack(fill='both', expand='yes')
+
+        self.database_proyec = database_proyec
+        self.folder_imagenes = database_proyec.strip('.db')
 
         self.s = Style()
-        self.s.configure('My.TFrame',background=self.color_fondo,foreground=self.color_letra)
+        self.s.configure('My.TFrame', background=self.color_fondo, foreground=self.color_letra)
 
         self.mostrar_barra_menu()
         self.pes_mostrar_actividades()
@@ -96,7 +99,7 @@ class Registro(BaseWindow):
 
     def exportar_actividades(self):
         print('Exportando actividades')
-        conn = Conexion()
+        conn = Conexion(self.database_proyec)
         sql = 'select * from activities'
         actividades = conn.run_query(sql)
         with filedialog.asksaveasfile(title='Guardar como',defaultextension=".csv",filetypes=(("Archivo csv","*.csv"),("Todos Archivos","*.*"))) as f:
@@ -110,7 +113,7 @@ class Registro(BaseWindow):
 
     def exportar_miembros(self):
         print('Exportar miembros')
-        conn = Conexion()
+        conn = Conexion(self.database_proyec)
         sql = 'select * from miembros'
         miembros = conn.run_query(sql)
         with filedialog.asksaveasfile(title='Guardar como',defaultextension=".csv",filetypes=(("Archivo csv","*.csv"),("Todos Archivos","*.*"))) as f:
@@ -154,10 +157,10 @@ class Registro(BaseWindow):
 
     def mostrar_informacion_de_exposiciones(self):
         sem = defaultdict(dict)
-        for miembro in Conexion().run_query('select * from activities'):
+        for miembro in Conexion(self.database_proyec).run_query('select * from activities'):
             sem[miembro[3]].update({miembro[1]: miembro[4]})
         sem_miembros = dict(sem)
-        semanas = [sem[0] for sem in Conexion().run_query('select distinct semana from activities')]
+        semanas = [sem[0] for sem in Conexion(self.database_proyec).run_query('select distinct semana from activities')]
         expos = defaultdict(list)
         for miembro,exposiciones in sem_miembros.items():
             for semana in semanas:
@@ -178,6 +181,9 @@ class Registro(BaseWindow):
         self.tree_exposicion.tag_configure('par', background='#CCFFCC')
         self.tree_exposicion.tag_configure('impar', background='#006666', foreground='#FFFFFF')
 
+        elements = self.tree_exposicion.get_children()
+        for element in elements:
+            self.tree_exposicion.delete(element)
         count = 0
         for miembro, aspas in expos.items():
             color = 'par' if count% 2 == 0 else 'impar'
@@ -190,7 +196,7 @@ class Registro(BaseWindow):
         elements = self.tree_actividad_miembro.get_children()
         for element in elements:
             self.tree_actividad_miembro.delete(element)
-        conn = Conexion()
+        conn = Conexion(self.database_proyec)
         query = 'select * from activities where semana=?'
         try:
             parameters = (int(self.ver_semana.get()),)
@@ -210,9 +216,8 @@ class Registro(BaseWindow):
         self.label_imagenes = LabelFrame(self.pes_img,text='Proyecto',fg=self.color_letra,bg=self.color_fondo)
         self.label_imagenes.grid(row=0, column=0, padx=10, pady=5,sticky=W+E, rowspan=2)
 
-        self.imagen = ImageTk.PhotoImage(Image.open('frame_image/Principal.jpg').resize((450,450), Image.ANTIALIAS))
-        self.imagen_proyecto = Label(self.label_imagenes, image=self.imagen)
-        self.imagen_proyecto.grid(row=0, column=0)
+        self.imagen = 'temp'
+        self.imagen_proyecto = 'temp_2'
 
         self.tree_imagenes = ttk.Treeview(self.pes_img, height=19, columns=(0,))
         self.tree_imagenes.grid(row=0,column=1,padx=10, pady=10)
@@ -229,7 +234,7 @@ class Registro(BaseWindow):
         self.message_imagen.grid(row=1, column=1, padx=10, pady=5)
 
     def llenar_tabla_imagenes(self):
-        directories = directorios('frame_image')
+        directories = directorios(f'frame_image/{self.folder_imagenes}')
         elements = self.tree_imagenes.get_children()
         for element in elements:
             self.tree_imagenes.delete(element)
@@ -247,7 +252,7 @@ class Registro(BaseWindow):
         imagen_mostrando = self.tree_imagenes.item(self.tree_imagenes.selection())['values'][0]
 
         # Actualizando imagen
-        path_imagen = f'frame_image/{imagen_mostrando}'
+        path_imagen = f'frame_image/{self.folder_imagenes}/{imagen_mostrando}'
         del self.imagen
         del self.imagen_proyecto
         self.imagen = ImageTk.PhotoImage(Image.open(path_imagen).resize((450,450), Image.ANTIALIAS))
@@ -312,7 +317,7 @@ class Registro(BaseWindow):
         self.llenar_tabla_actividades_miembros()
 
     def llenar_combo_miembros(self):
-        conn = Conexion()
+        conn = Conexion(self.database_proyec)
         query = 'select complete_name from miembros'
         miembros_com = conn.run_query(query)
         miembros_com = [m[0] for m in miembros_com]
@@ -323,7 +328,7 @@ class Registro(BaseWindow):
         try:
             actividad_ = Actividad(self.combo_miembros.get(),int(self.semana.get()),
                                   self.combo_exp.get(),self.text.get(1.0,END).strip('\n'))
-            conn = Conexion()
+            conn = Conexion(self.database_proyec)
             query = "INSERT INTO activities VALUES(NULL,?,?,?,?)"
             parameters = (actividad_.semana,actividad_.actividad,actividad_.miembro,actividad_.exp)
             conn.run_query(query, parameters)
@@ -349,7 +354,7 @@ class Registro(BaseWindow):
         exp = self.tree_actividad.item(self.tree_actividad.selection())['values'][0]
         semana = int(self.tree_actividad.item(self.tree_actividad.selection())['values'][1])
         actividad = self.tree_actividad.item(self.tree_actividad.selection())['values'][2]
-        conn = Conexion()
+        conn = Conexion(self.database_proyec)
         query = "DELETE FROM activities WHERE semana=? AND actividad=? AND responsable=? AND exp=?"
         conn.run_query(query,(semana,actividad,nombre,exp))
         self.message_actividad['text'] = f'{actividad} eliminado'
@@ -408,7 +413,7 @@ class Registro(BaseWindow):
         except Exception as ex:
             messagebox.showwarning('Ocurrio un error',ex)
             return
-        conn = Conexion()
+        conn = Conexion(self.database_proyec)
         query = "UPDATE activities SET semana=?, actividad=?, responsable=?, exp=? WHERE semana=? AND actividad=? AND responsable=?"
         parameters = (actividad.semana, actividad.actividad, actividad.miembro, actividad.exp, self.semana_old, self.actividad_old, self.name_old_actividad)
         conn.run_query(query,parameters)
@@ -422,7 +427,7 @@ class Registro(BaseWindow):
         elements = self.tree_actividad.get_children()
         for element in elements:
             self.tree_actividad.delete(element)
-        conn = Conexion()
+        conn = Conexion(self.database_proyec)
         query = 'select * from activities'
         activities_ = [act for act in conn.run_query(query)]
         self.len_activities = len(activities_)
@@ -491,7 +496,7 @@ class Registro(BaseWindow):
         elements = self.tree_miembro.get_children()
         for element in elements:
             self.tree_miembro.delete(element)
-        conn = Conexion()
+        conn = Conexion(self.database_proyec)
         query = 'select * from miembros'
         miembros = conn.run_query(query)
         miembros = [ miem for miem in miembros]
@@ -504,7 +509,7 @@ class Registro(BaseWindow):
     def guardar_miembro(self):
         try:
             miembro = Miembro(self.name.get(),int(self.edad.get()),self.combo_grado.get(),self.combo_casa_estudios.get())
-            conn = Conexion()
+            conn = Conexion(self.database_proyec)
             query = "INSERT INTO miembros VALUES(NULL,?,?,?,?)"
             parameters = (miembro.name,miembro.edad,miembro.grado,miembro.casa_estudios)
             conn.run_query(query, parameters)
@@ -526,7 +531,7 @@ class Registro(BaseWindow):
         name = self.tree_miembro.item(self.tree_miembro.selection())['text']
         edad = self.tree_miembro.item(self.tree_miembro.selection())['values'][0]
         grado = self.tree_miembro.item(self.tree_miembro.selection())['values'][1]
-        conn = Conexion()
+        conn = Conexion(self.database_proyec)
         query = "DELETE FROM miembros WHERE complete_name=? AND edad=? AND grado_ciclo=?"
         conn.run_query(query,(name,edad,grado))
         self.message_miembro['text'] = f'{name} eliminado'
@@ -590,7 +595,7 @@ class Registro(BaseWindow):
         except Exception as ex:
             messagebox.showwarning('Error encontrado',ex)
             return
-        conn = Conexion()
+        conn = Conexion(self.database_proyec)
         query = "UPDATE miembros SET complete_name=?, edad=?, grado_ciclo=?, casa_estudios=? WHERE complete_name=? AND edad=? AND grado_ciclo=?"
         parameters = (self.nombre_miembro.get(),self.edad_miembro.get(),self.editar_combo_miembro.get(),self.editar_combo_estudios.get(), self.name_old, self.edad_old, self.grado_old)
         conn.run_query(query,parameters)

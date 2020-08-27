@@ -3,7 +3,7 @@
 from string import ascii_letters
 from app.herramientas.exceptions import *
 
-__all__ = ['NombreValido','EdadValida','Miembro']
+__all__ = ['NombreValido', 'EdadValida', 'Miembro']
 
 class NombreValido:
     def __init__(self,min=5):

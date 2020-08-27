@@ -4,8 +4,8 @@
 import sqlite3
 
 class Conexion:
-    def __init__(self):
-        self.db_name = 'app/app.db'
+    def __init__(self, database='users_secret/users.db'):
+        self.db_name = f'app/proyectos_database/{database}'
 
     def run_query(self,query,parameters = ()):
         try:
